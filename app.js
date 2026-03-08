@@ -29,19 +29,41 @@ function getWeekOfMonth(d) { const day = d.getDate(); return day <= 7 ? 1 : day 
 // Persistence
 function saveData() { try { localStorage.setItem("escolhidos_crm", JSON.stringify({ bdrs: state.bdrs, month: state.month, year: state.year, week: state.week })); } catch(e) {} }
 function loadData() { try { const r = localStorage.getItem("escolhidos_crm"); if (r) { const d = JSON.parse(r); if (Array.isArray(d.bdrs)) { state.bdrs = d.bdrs; state.bdrs.forEach(b => { if (!b.proofs) b.proofs = []; if (!b.password) b.password = b.name.split(" ")[0].toLowerCase() + "123"; }); state.month = d.month ?? state.month; state.year = d.year ?? state.year; state.week = d.week ?? state.week; return true; } } } catch(e) {} return false; }
-async function loadFromCloud() {
+async function syncWithCloud() {
   try {
     const resp = await fetch('db.json?t=' + Date.now());
     if (resp.ok) {
       const data = await resp.json();
-      if (Array.isArray(data.bdrs) && data.bdrs.length > 0) {
-        state.bdrs = data.bdrs;
-        state.bdrs.forEach(b => { if (!b.proofs) b.proofs = []; if (!b.password) b.password = b.name.split(" ")[0].toLowerCase() + "123"; });
-        saveData();
+      if (Array.isArray(data.bdrs)) {
+        // Mapeamos os IDs locais para verificação rápida
+        const localIds = new Set(state.bdrs.map(b => b.id));
+        let changed = false;
+
+        data.bdrs.forEach(cloudBdr => {
+          const localBdr = state.bdrs.find(b => b.id === cloudBdr.id);
+          if (localBdr) {
+            // Sincroniza senha e dados básicos se houver diferença
+            if (localBdr.password !== cloudBdr.password || localBdr.name !== cloudBdr.name) {
+              localBdr.password = cloudBdr.password;
+              localBdr.name = cloudBdr.name;
+              localBdr.plan = cloudBdr.plan;
+              changed = true;
+            }
+          } else {
+            // Novo usuário do banco de dados na nuvem!
+            state.bdrs.push({ ...cloudBdr, proofs: cloudBdr.proofs || [] });
+            changed = true;
+          }
+        });
+
+        if (changed) {
+          saveData();
+          render();
+        }
         return true;
       }
     }
-  } catch(e) { console.log('db.json não encontrado, iniciando vazio'); }
+  } catch(e) { console.warn('Erro ao sincronizar com db.json:', e); }
   return false;
 }
 function exportDB() {
@@ -439,9 +461,7 @@ function addEscolhido() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  if (!loadData()) {
-    const cloudOk = await loadFromCloud();
-    if (!cloudOk) { state.bdrs = [...initialBDRs]; saveData(); }
-  }
-  render();
+  loadData(); 
+  render(); // Renderiza local primeiro para velocidade
+  await syncWithCloud(); // Busca atualizações do db.json (novos usuários, senhas alteradas)
 });
