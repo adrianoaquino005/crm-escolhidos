@@ -80,7 +80,6 @@ function exportPDF() { const r = rerank(getVisibleBDRs(), state.sortBy); const w
 
 // ========== LOGIN SCREEN ==========
 function renderLogin() {
-  const allBdrs = state.bdrs;
   return `
   <div class="bg-grid"></div><div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div>
   <div class="login-screen">
@@ -88,18 +87,10 @@ function renderLogin() {
       <div class="login-logo">${LOGO_SVG}</div>
       <div class="login-tag">⚔ PROGRAMA DE ALTA PERFORMANCE</div>
       <h1 class="login-title">OS <span class="accent">ESCOLHIDOS</span></h1>
-      <p class="login-sub">Faça login para acessar o ranking</p>
+      <p class="login-sub">Digite sua senha para acessar o ranking</p>
       ${state.loginError ? `<div class="login-error">${state.loginError}</div>` : ''}
       <div class="login-field">
-        <label class="login-label">Quem é você?</label>
-        <select class="login-select" id="login-select">
-          <option value="">Selecione...</option>
-          <option value="admin" ${state.loginSelect==='admin'?'selected':''}>🛡️ Administrador</option>
-          ${allBdrs.map(b => `<option value="${b.id}" ${state.loginSelect==String(b.id)?'selected':''}>${esc(b.name)}</option>`).join("")}
-        </select>
-      </div>
-      <div class="login-field">
-        <label class="login-label">Senha</label>
+        <label class="login-label">Senha de Acesso</label>
         <input class="login-input" type="password" id="login-pass" placeholder="Digite sua senha" value="${esc(state.loginPass)}" />
       </div>
       <button class="btn btn-primary btn-lg login-btn" id="btn-login">ENTRAR</button>
@@ -304,7 +295,6 @@ function renderLightbox() {
 
 // ========== EVENTS ==========
 function bindLoginEvents() {
-  document.getElementById("login-select")?.addEventListener("change", e => { state.loginSelect = e.target.value; });
   document.getElementById("login-pass")?.addEventListener("input", e => { state.loginPass = e.target.value; });
   document.getElementById("login-pass")?.addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
   document.getElementById("btn-login")?.addEventListener("click", doLogin);
@@ -358,17 +348,14 @@ function doRegister() {
   showToast("Conta criada com sucesso! 🛡️");
 }
 function doLogin() {
-  const sel = state.loginSelect, pass = state.loginPass;
-  if (!sel) { state.loginError = "Selecione um usuário"; render(); return; }
-  if (sel === "admin") {
-    if (pass === ADMIN_PASS) { state.isAdmin = true; state.loggedUser = null; state.loginError = ""; render(); showToast("Bem-vindo, Admin! 🛡️"); }
-    else { state.loginError = "Senha incorreta"; render(); }
-  } else {
-    const bdr = state.bdrs.find(b => b.id === parseInt(sel));
-    if (!bdr) { state.loginError = "Usuário não encontrado"; render(); return; }
-    if (pass === bdr.password) { state.loggedUser = bdr.id; state.isAdmin = false; state.loginError = ""; render(); showToast(`Bem-vindo, ${bdr.name.split(" ")[0]}! ⚔️`); }
-    else { state.loginError = "Senha incorreta"; render(); }
-  }
+  const pass = state.loginPass;
+  if (!pass) { state.loginError = "Digite sua senha"; render(); return; }
+  // Check admin
+  if (pass === ADMIN_PASS) { state.isAdmin = true; state.loggedUser = null; state.loginError = ""; render(); showToast("Bem-vindo, Admin! 🛡️"); return; }
+  // Check BDRs by password
+  const bdr = state.bdrs.find(b => b.password === pass);
+  if (bdr) { state.loggedUser = bdr.id; state.isAdmin = false; state.loginError = ""; render(); showToast(`Bem-vindo, ${bdr.name.split(" ")[0]}! ⚔️`); return; }
+  state.loginError = "Senha incorreta"; render();
 }
 
 function bindEvents() {
