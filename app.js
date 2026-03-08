@@ -12,23 +12,7 @@ const SORT_OPTIONS = [
 ];
 const MEDAL = ["🥇", "🥈", "🥉"];
 
-const initialBDRs = [
-  { id: 1, name: "Ana Souza", avatar: "AS", photo: null, password: "ana123", meetings: 47, proposals: 110000, revenue: 99000, plan: "mensal", joinWeek: 1, joinMonth: 2, joinYear: 2026, proofs: [] },
-  { id: 2, name: "Carlos Lima", avatar: "CL", photo: null, password: "carlos123", meetings: 43, proposals: 95000, revenue: 82500, plan: "mensal", joinWeek: 1, joinMonth: 2, joinYear: 2026, proofs: [] },
-  { id: 3, name: "Beatriz Nunes", avatar: "BN", photo: null, password: "bia123", meetings: 41, proposals: 102000, revenue: 88000, plan: "mensal", joinWeek: 1, joinMonth: 2, joinYear: 2026, proofs: [] },
-  { id: 4, name: "Diego Rocha", avatar: "DR", photo: null, password: "diego123", meetings: 38, proposals: 78000, revenue: 66000, plan: "semanal", joinWeek: 1, joinMonth: 2, joinYear: 2026, proofs: [] },
-  { id: 5, name: "Fernanda Costa", avatar: "FC", photo: null, password: "fer123", meetings: 36, proposals: 88000, revenue: 77000, plan: "mensal", joinWeek: 1, joinMonth: 2, joinYear: 2026, proofs: [] },
-  { id: 6, name: "Gabriel Mota", avatar: "GM", photo: null, password: "gab123", meetings: 33, proposals: 72000, revenue: 60500, plan: "semanal", joinWeek: 1, joinMonth: 2, joinYear: 2026, proofs: [] },
-  { id: 7, name: "Helena Pires", avatar: "HP", photo: null, password: "helena123", meetings: 31, proposals: 85000, revenue: 71500, plan: "mensal", joinWeek: 1, joinMonth: 2, joinYear: 2026, proofs: [] },
-  { id: 8, name: "Igor Braga", avatar: "IB", photo: null, password: "igor123", meetings: 29, proposals: 58000, revenue: 49500, plan: "semanal", joinWeek: 1, joinMonth: 2, joinYear: 2026, proofs: [] },
-  { id: 9, name: "Julia Mendes", avatar: "JM", photo: null, password: "julia123", meetings: 27, proposals: 65000, revenue: 55000, plan: "mensal", joinWeek: 1, joinMonth: 2, joinYear: 2026, proofs: [] },
-  { id: 10, name: "Kaio Ferreira", avatar: "KF", photo: null, password: "kaio123", meetings: 25, proposals: 52000, revenue: 44000, plan: "mensal", joinWeek: 1, joinMonth: 2, joinYear: 2026, proofs: [] },
-  { id: 11, name: "Larissa Vaz", avatar: "LV", photo: null, password: "lari123", meetings: 23, proposals: 58000, revenue: 49500, plan: "semanal", joinWeek: 1, joinMonth: 2, joinYear: 2026, proofs: [] },
-  { id: 12, name: "Marcos Teles", avatar: "MT", photo: null, password: "marcos123", meetings: 21, proposals: 45000, revenue: 38500, plan: "mensal", joinWeek: 1, joinMonth: 2, joinYear: 2026, proofs: [] },
-  { id: 13, name: "Natalia Cruz", avatar: "NC", photo: null, password: "nat123", meetings: 19, proposals: 52000, revenue: 44000, plan: "semanal", joinWeek: 1, joinMonth: 2, joinYear: 2026, proofs: [] },
-  { id: 14, name: "Otávio Reis", avatar: "OR", photo: null, password: "otavio123", meetings: 17, proposals: 32000, revenue: 27500, plan: "mensal", joinWeek: 1, joinMonth: 2, joinYear: 2026, proofs: [] },
-  { id: 15, name: "Paula Dias", avatar: "PD", photo: null, password: "paula123", meetings: 15, proposals: 38000, revenue: 33000, plan: "semanal", joinWeek: 1, joinMonth: 2, joinYear: 2026, proofs: [] },
-];
+const initialBDRs = [];
 
 const now = new Date();
 let state = {
@@ -44,7 +28,7 @@ function getWeekOfMonth(d) { const day = d.getDate(); return day <= 7 ? 1 : day 
 
 // Persistence
 function saveData() { try { localStorage.setItem("escolhidos_crm", JSON.stringify({ bdrs: state.bdrs, month: state.month, year: state.year, week: state.week })); } catch(e) {} }
-function loadData() { try { const r = localStorage.getItem("escolhidos_crm"); if (r) { const d = JSON.parse(r); if (d.bdrs?.length) { state.bdrs = d.bdrs; state.bdrs.forEach(b => { if (!b.proofs) b.proofs = []; if (!b.password) b.password = b.name.split(" ")[0].toLowerCase() + "123"; }); state.month = d.month ?? state.month; state.year = d.year ?? state.year; state.week = d.week ?? state.week; return true; } } } catch(e) {} return false; }
+function loadData() { try { const r = localStorage.getItem("escolhidos_crm"); if (r) { const d = JSON.parse(r); if (Array.isArray(d.bdrs)) { state.bdrs = d.bdrs; state.bdrs.forEach(b => { if (!b.proofs) b.proofs = []; if (!b.password) b.password = b.name.split(" ")[0].toLowerCase() + "123"; }); state.month = d.month ?? state.month; state.year = d.year ?? state.year; state.week = d.week ?? state.week; return true; } } } catch(e) {} return false; }
 
 // Helpers
 function getVisibleBDRs() { return state.bdrs.filter(b => { if (b.plan === "mensal") return b.joinMonth === state.month && b.joinYear === state.year; return b.joinMonth === state.month && b.joinYear === state.year && b.joinWeek === state.week; }); }
