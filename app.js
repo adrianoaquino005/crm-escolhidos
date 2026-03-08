@@ -29,6 +29,30 @@ function getWeekOfMonth(d) { const day = d.getDate(); return day <= 7 ? 1 : day 
 // Persistence
 function saveData() { try { localStorage.setItem("escolhidos_crm", JSON.stringify({ bdrs: state.bdrs, month: state.month, year: state.year, week: state.week })); } catch(e) {} }
 function loadData() { try { const r = localStorage.getItem("escolhidos_crm"); if (r) { const d = JSON.parse(r); if (Array.isArray(d.bdrs)) { state.bdrs = d.bdrs; state.bdrs.forEach(b => { if (!b.proofs) b.proofs = []; if (!b.password) b.password = b.name.split(" ")[0].toLowerCase() + "123"; }); state.month = d.month ?? state.month; state.year = d.year ?? state.year; state.week = d.week ?? state.week; return true; } } } catch(e) {} return false; }
+async function loadFromCloud() {
+  try {
+    const resp = await fetch('db.json?t=' + Date.now());
+    if (resp.ok) {
+      const data = await resp.json();
+      if (Array.isArray(data.bdrs) && data.bdrs.length > 0) {
+        state.bdrs = data.bdrs;
+        state.bdrs.forEach(b => { if (!b.proofs) b.proofs = []; if (!b.password) b.password = b.name.split(" ")[0].toLowerCase() + "123"; });
+        saveData();
+        return true;
+      }
+    }
+  } catch(e) { console.log('db.json não encontrado, iniciando vazio'); }
+  return false;
+}
+function exportDB() {
+  const data = { bdrs: state.bdrs.map(b => ({ id: b.id, name: b.name, avatar: b.avatar, photo: b.photo, password: b.password, meetings: b.meetings, proposals: b.proposals, revenue: b.revenue, plan: b.plan, joinWeek: b.joinWeek, joinMonth: b.joinMonth, joinYear: b.joinYear, proofs: [] })) };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'db.json'; a.click();
+  URL.revokeObjectURL(url);
+  showToast('db.json exportado! Substitua o arquivo no projeto e faça push no GitHub.', 'info');
+}
 
 // Helpers
 function getVisibleBDRs() { return state.bdrs.filter(b => { if (b.plan === "mensal") return b.joinMonth === state.month && b.joinYear === state.year; return b.joinMonth === state.month && b.joinYear === state.year && b.joinWeek === state.week; }); }
@@ -232,6 +256,7 @@ function render() {
         </div>
         <button class="btn btn-export" id="btn-csv"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg>CSV</button>
         <button class="btn btn-export" id="btn-pdf"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>PDF</button>
+        ${state.isAdmin ? `<button class="btn btn-export" id="btn-export-db"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>DB</button>` : ''}
         ${state.isAdmin ? `<button class="btn btn-primary" id="btn-add-escolhido"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>NOVO ESCOLHIDO</button>` : ''}
       </div>
     </header>
@@ -360,6 +385,7 @@ function bindEvents() {
   // Export
   document.getElementById("btn-csv")?.addEventListener("click", exportCSV);
   document.getElementById("btn-pdf")?.addEventListener("click", exportPDF);
+  document.getElementById("btn-export-db")?.addEventListener("click", exportDB);
   // Add
   document.getElementById("btn-add-escolhido")?.addEventListener("click", () => { state.showAddModal=true; render(); setTimeout(()=>document.querySelector('[data-new-field="name"]')?.focus(),100); });
   // Search
@@ -425,4 +451,10 @@ function addEscolhido() {
   state.bdrs=[...state.bdrs,entry]; closeAddModal(); saveData(); showToast(`${entry.name} cadastrado! ⚔️`);
 }
 
-document.addEventListener("DOMContentLoaded", () => { if(!loadData()){state.bdrs=[...initialBDRs];state.bdrs.forEach(b=>{b.joinMonth=state.month;b.joinYear=state.year;});saveData();} render(); });
+document.addEventListener("DOMContentLoaded", async () => {
+  if (!loadData()) {
+    const cloudOk = await loadFromCloud();
+    if (!cloudOk) { state.bdrs = [...initialBDRs]; saveData(); }
+  }
+  render();
+});
