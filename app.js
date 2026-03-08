@@ -36,7 +36,7 @@ let state = {
   showAddModal: false, showUpdateModal: null, showLightbox: null,
   newBDR: { name: "", meetings: "", proposals: "", revenue: "", plan: "semanal", photo: null, photoPreview: null, password: "" },
   month: now.getMonth(), year: now.getFullYear(), week: getWeekOfMonth(now), showCalendar: false,
-  loggedUser: null, isAdmin: false, loginSelect: "", loginPass: "", loginError: "",
+  loggedUser: null, isAdmin: false, loginSelect: "", loginPass: "", loginError: "", authMode: "login", // "login" ou "register"
   pendingProof: {}, // { field: base64 }
 };
 
@@ -95,6 +95,39 @@ function renderLogin() {
         <input class="login-input" type="password" id="login-pass" placeholder="Digite sua senha" value="${esc(state.loginPass)}" />
       </div>
       <button class="btn btn-primary btn-lg login-btn" id="btn-login">ENTRAR</button>
+      <div class="auth-switch">
+        Não tem uma conta? <button class="btn-link" id="link-to-register">Criar conta agora</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderRegister() {
+  return `
+  <div class="bg-grid"></div><div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div>
+  <div class="login-screen">
+    <div class="login-card">
+      <div class="login-logo">${LOGO_SVG}</div>
+      <div class="login-tag">⚔ PROGRAMA DE ALTA PERFORMANCE</div>
+      <h1 class="login-title">CRIAR <span class="accent">CONTA</span></h1>
+      <p class="login-sub">Junte-se aos Escolhidos</p>
+      ${state.loginError ? `<div class="login-error">${state.loginError}</div>` : ''}
+      <div class="login-field">
+        <label class="login-label">Nome Completo</label>
+        <input class="login-input" type="text" id="reg-name" placeholder="Ex: Adriano Aquino" />
+      </div>
+      <div class="login-field">
+        <label class="login-label">Senha de Acesso</label>
+        <input class="login-input" type="password" id="reg-pass" placeholder="Crie uma senha" />
+      </div>
+      <div class="login-field">
+        <label class="login-label">Confirme a Senha</label>
+        <input class="login-input" type="password" id="reg-pass-confirm" placeholder="Repita a senha" />
+      </div>
+      <button class="btn btn-primary btn-lg login-btn" id="btn-do-register">CADASTRAR</button>
+      <div class="auth-switch">
+        Já possui uma conta? <button class="btn-link" id="link-to-login">Voltar ao login</button>
+      </div>
     </div>
   </div>`;
 }
@@ -175,7 +208,16 @@ function calendarHTML() {
 // ========== MAIN RENDER ==========
 function render() {
   const app = document.getElementById("app");
-  if (!state.loggedUser && !state.isAdmin) { app.innerHTML = renderLogin(); bindLoginEvents(); return; }
+  if (!state.loggedUser && !state.isAdmin) {
+    if (state.authMode === "register") {
+      app.innerHTML = renderRegister();
+      bindRegisterEvents();
+    } else {
+      app.innerHTML = renderLogin();
+      bindLoginEvents();
+    }
+    return;
+  }
 
   const visible = getVisibleBDRs();
   const ranked = rerank(visible, state.sortBy);
@@ -257,6 +299,54 @@ function bindLoginEvents() {
   document.getElementById("login-pass")?.addEventListener("input", e => { state.loginPass = e.target.value; });
   document.getElementById("login-pass")?.addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
   document.getElementById("btn-login")?.addEventListener("click", doLogin);
+  document.getElementById("link-to-register")?.addEventListener("click", () => { state.authMode = "register"; state.loginError = ""; render(); });
+}
+
+function bindRegisterEvents() {
+  document.getElementById("link-to-login")?.addEventListener("click", () => { state.authMode = "login"; state.loginError = ""; render(); });
+  document.getElementById("btn-do-register")?.addEventListener("click", doRegister);
+  document.querySelectorAll("#reg-name, #reg-pass, #reg-pass-confirm").forEach(inp => {
+    inp.addEventListener("keydown", e => { if(e.key === "Enter") doRegister(); });
+  });
+}
+
+function doRegister() {
+  const name = document.getElementById("reg-name").value.trim();
+  const pass = document.getElementById("reg-pass").value.trim();
+  const passConf = document.getElementById("reg-pass-confirm").value.trim();
+
+  if (!name || !pass) { state.loginError = "Preencha todos os campos"; render(); return; }
+  if (pass !== passConf) { state.loginError = "As senhas não coincidem"; render(); return; }
+  if (pass.length < 4) { state.loginError = "A senha deve ter pelo menos 4 caracteres"; render(); return; }
+  
+  const existing = state.bdrs.find(b => b.name.toLowerCase() === name.toLowerCase());
+  if (existing) { state.loginError = "Este nome já está cadastrado"; render(); return; }
+
+  const ini = name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  const entry = { 
+    id: Date.now(), 
+    name: name, 
+    avatar: ini, 
+    photo: null, 
+    password: pass, 
+    meetings: 0, 
+    proposals: 0, 
+    revenue: 0, 
+    plan: "semanal", 
+    joinWeek: state.week, 
+    joinMonth: state.month, 
+    joinYear: state.year, 
+    proofs: [] 
+  };
+
+  state.bdrs = [...state.bdrs, entry];
+  saveData();
+  state.authMode = "login";
+  state.loginSelect = String(entry.id);
+  state.loginPass = "";
+  state.loginError = "";
+  render();
+  showToast("Conta criada com sucesso! 🛡️");
 }
 function doLogin() {
   const sel = state.loginSelect, pass = state.loginPass;
